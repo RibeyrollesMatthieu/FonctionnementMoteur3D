@@ -9,7 +9,7 @@
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 
-const int imageSize = 600;
+const int imageSize = 1000;
 
 // draw a @color point on @image at coords @x and @y
 void drawPoint(TGAImage &image, int x, int y, TGAColor color) {
@@ -50,9 +50,9 @@ void drawLine(TGAImage &image, int x0, int y0, int x1, int y1, TGAColor color) {
 //
 void drawTriangle(TGAImage &image, std::array<double, 3> coords0, std::array<double, 3> coords1, std::array<double, 3> coords2, TGAColor color) {
     std::cout << coords0[0] << std::endl;
-    drawLine(image, coords0[0] * imageSize + imageSize, coords0[1] * imageSize + imageSize, coords1[0] * imageSize + imageSize, coords1[1] * imageSize + imageSize, color); // from 0 to 1
-    drawLine(image, coords1[0] * imageSize + imageSize, coords1[1] * imageSize + imageSize, coords2[0] * imageSize + imageSize, coords2[1] * imageSize + imageSize, color); // from 1 to 2
-    drawLine(image, coords2[0] * imageSize + imageSize, coords2[1] * imageSize + imageSize, coords0[0] * imageSize + imageSize, coords0[1] * imageSize + imageSize, color); // from 2 to 0
+    drawLine(image, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, color); // from 0 to 1
+    drawLine(image, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, color); // from 1 to 2
+    drawLine(image, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, color); // from 2 to 0
 }
 
 std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
@@ -78,7 +78,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
     if (infile) {
 
-        TGAImage image(imageSize * 2, imageSize * 2, TGAImage::RGB);
+        TGAImage image(imageSize, imageSize, TGAImage::RGB);
 
         std::string line;
         std::vector<std::array<double,3>> vertices = getVertices(infile);
@@ -91,7 +91,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
             if (drawCloud) { // draw a cloud of points (vertices)
                 for (auto i = 0; i < vertices.size(); i++) {
-                    drawPoint(image, vertices.at(i)[0] * imageSize + imageSize, vertices.at(i)[1] * imageSize + imageSize, red);
+                    drawPoint(image, vertices.at(i)[0] * imageSize/2 + imageSize/2, vertices.at(i)[1] * imageSize/2 + imageSize/2, red);
                 }
             }
 
@@ -121,7 +121,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 int main(int argc, char** argv) {
     std::string fileName(argv[1]);
 
-	readFile(fileName, true, false);
+	readFile(fileName);
 
 	return 0;
 }
