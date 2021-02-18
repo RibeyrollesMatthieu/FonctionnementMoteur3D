@@ -5,4 +5,6 @@ run command:
   cd build &&   
   cmake .. &&  
   make &&  
-  ./tinyrenderer ./../obj/african_head/african_head.obj
+  ./tinyrenderer ./../obj/african_head/african_head.obj   
+  
+it will open a output.tga image on the build folder.
