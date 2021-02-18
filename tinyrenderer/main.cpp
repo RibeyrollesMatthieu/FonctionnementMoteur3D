@@ -1,10 +1,12 @@
 #include "tgaimage.h"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <iostream>
 #include <vector>
 #include <array>
+#include <cmath>
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -49,10 +51,13 @@ void drawLine(TGAImage &image, int x0, int y0, int x1, int y1, TGAColor color) {
 
 //
 void drawTriangle(TGAImage &image, std::array<double, 3> coords0, std::array<double, 3> coords1, std::array<double, 3> coords2, TGAColor color) {
-    std::cout << coords0[0] << std::endl;
     drawLine(image, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, color); // from 0 to 1
     drawLine(image, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, color); // from 1 to 2
     drawLine(image, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, color); // from 2 to 0
+}
+
+void drawFilleDRectangle() {
+
 }
 
 std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
@@ -73,7 +78,35 @@ std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
     return vertices;
 }
 
-void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles = true) {
+class Vec3f {
+    private:
+        
+    public:
+        double x, y, z;
+        Vec3f(double x, double y, double z);
+};
+
+Vec3f::Vec3f(double x, double y, double z) {
+    this->x = x;
+    this->y = y;
+    this->z = z;
+}
+
+Vec3f crossProduct(Vec3f v1, Vec3f v2) {
+    return Vec3f(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
+}
+
+Vec3f getBarycentric(std::vector<std::array<double,3>> &triangle, double *point) {
+    Vec3f temp = crossProduct(
+        Vec3f(triangle[2][0]-triangle[0][0], triangle[1][0]-triangle[0][0], triangle[0][0]-point[0]),
+        Vec3f(triangle[2][1]-triangle[0][1], triangle[1][1]-triangle[0][1], triangle[0][1]-point[1])
+    );
+
+    //if (std::abs(temp.z) < 1) return Vec3f(-1, 1, 1);
+    return Vec3f(1.f-(temp.x + temp.y) / temp.z, temp.y / temp.z, temp.x / temp.z);
+}
+
+void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles = true, bool fillRectangles = true) {
 	std::ifstream infile(fileName);
 
     if (infile) {
@@ -105,7 +138,36 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
                         index1 >> slash >> trashInt >> slash >> trashInt >> 
                         index2 >> slash >> trashInt >> slash >> trashInt;
 
-                    drawTriangle(image, vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1), white);
+                    if (fillRectangles) {
+
+                        std::array<double, 3> a = vertices.at(index0-1);
+                        std::array<double, 3> b = vertices.at(index1-1);
+                        std::array<double, 3> c = vertices.at(index2-1);
+
+                        double x_min = std::min(a[0], std::min(b[0], c[0])) * imageSize/2 + imageSize/2;
+                        double y_min = std::min(a[1], std::min(b[1], c[1])) * imageSize/2 + imageSize/2;
+
+                        double x_max = std::max(a[0], std::max(b[0], c[0])) * imageSize/2 + imageSize/2;
+                        double y_max = std::max(a[1], std::max(b[1], c[1])) * imageSize/2 + imageSize/2;
+
+                        for (auto x = x_min; x <= x_max; x++) {
+                            for (auto y = y_min ; y <= y_max; y++) {
+                                std::vector<std::array<double, 3>> triangles;
+                                triangles.push_back(a);
+                                triangles.push_back(b);
+                                triangles.push_back(c);
+
+                                double point[] = {x, y};
+
+                                Vec3f bary = getBarycentric(triangles, point);
+                                //std::cout << bary.x << " " << bary.y << " " << bary.z << std::endl;
+                                //if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
+                                drawPoint(image, x, y, red);
+                            } 
+                        }
+                    } else {
+                    }
+                        drawTriangle(image, vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1), white);
                 }
             }
         }
