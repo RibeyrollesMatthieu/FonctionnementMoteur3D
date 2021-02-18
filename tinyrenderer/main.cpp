@@ -57,7 +57,6 @@ void drawTriangle(TGAImage &image, std::array<double, 3> coords0, std::array<dou
 }
 
 void drawFilleDRectangle() {
-
 }
 
 std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
