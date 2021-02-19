@@ -13,6 +13,29 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 
 const int imageSize = 1000;
 
+class Vec3f {
+    private:
+        
+    public:
+        double x, y, z;
+        Vec3f(double x, double y, double z);
+        Vec3f worldToScreen();
+};
+
+Vec3f::Vec3f(double x, double y, double z) {
+    this->x = x;
+    this->y = y;
+    this->z = z;
+}
+
+Vec3f Vec3f::worldToScreen() {
+    return Vec3f(
+        this->x * imageSize/2 + imageSize/2,
+        this->y * imageSize/2 + imageSize/2,
+        this->z* imageSize/2 + imageSize/2
+    );
+}
+
 // draw a @color point on @image at coords @x and @y
 void drawPoint(TGAImage &image, int x, int y, TGAColor color) {
     image.set(x, y, color);
@@ -50,26 +73,25 @@ void drawLine(TGAImage &image, int x0, int y0, int x1, int y1, TGAColor color) {
 }
 
 //
-void drawTriangle(TGAImage &image, std::array<double, 3> coords0, std::array<double, 3> coords1, std::array<double, 3> coords2, TGAColor color) {
-    drawLine(image, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, color); // from 0 to 1
-    drawLine(image, coords1[0] * imageSize/2 + imageSize/2, coords1[1] * imageSize/2 + imageSize/2, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, color); // from 1 to 2
-    drawLine(image, coords2[0] * imageSize/2 + imageSize/2, coords2[1] * imageSize/2 + imageSize/2, coords0[0] * imageSize/2 + imageSize/2, coords0[1] * imageSize/2 + imageSize/2, color); // from 2 to 0
+void drawTriangle(TGAImage &image, Vec3f *vec3fs, TGAColor color) {
+    drawLine(image, vec3fs[0].x * imageSize/2 + imageSize/2, vec3fs[0].y * imageSize/2 + imageSize/2, vec3fs[1].x * imageSize/2 + imageSize/2, vec3fs[1].y * imageSize/2 + imageSize/2, color); // from 0 to 1
+    drawLine(image, vec3fs[1].x * imageSize/2 + imageSize/2, vec3fs[1].y * imageSize/2 + imageSize/2, vec3fs[2].x * imageSize/2 + imageSize/2, vec3fs[2].y * imageSize/2 + imageSize/2, color); // from 1 to 2
+    drawLine(image, vec3fs[2].x * imageSize/2 + imageSize/2, vec3fs[2].y * imageSize/2 + imageSize/2, vec3fs[0].x * imageSize/2 + imageSize/2, vec3fs[0].y * imageSize/2 + imageSize/2, color); // from 2 to 0
 }
 
-void drawFilleDRectangle() {
-}
-
-std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
-    std::vector<std::array<double,3>> vertices;
+std::vector<Vec3f> getVertices(std::ifstream &infile) {
+    std::vector<Vec3f> vertices;
     std::string line;
 
     while(std::getline(infile, line)) {
         if (line.rfind("v ", 0) == 0) { // reading all vertices
-            std::array<double, 3> coords;
+            double x, y, z;
+            
             std::istringstream streamLine(line.c_str());
             char smth;
 
-            streamLine >> smth >> coords[0] >> coords[1] >> coords[2];
+            streamLine >> smth >> x >> y >> z;
+            Vec3f coords(x, y, z);
             vertices.push_back(coords);
         }
     }
@@ -77,32 +99,21 @@ std::vector<std::array<double,3>> getVertices(std::ifstream &infile) {
     return vertices;
 }
 
-class Vec3f {
-    private:
-        
-    public:
-        double x, y, z;
-        Vec3f(double x, double y, double z);
-};
-
-Vec3f::Vec3f(double x, double y, double z) {
-    this->x = x;
-    this->y = y;
-    this->z = z;
-}
-
 Vec3f crossProduct(Vec3f v1, Vec3f v2) {
     return Vec3f(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
 }
 
-Vec3f getBarycentric(std::vector<std::array<double,3>> &triangle, double *point) {
-    Vec3f temp = crossProduct(
-        Vec3f(triangle[2][0]-triangle[0][0], triangle[1][0]-triangle[0][0], triangle[0][0]-point[0]),
-        Vec3f(triangle[2][1]-triangle[0][1], triangle[1][1]-triangle[0][1], triangle[0][1]-point[1])
-    );
+Vec3f getBarycentric(std::vector<Vec3f> &triangle, double *point) {
+    Vec3f ab(triangle[1].x - triangle[0].x, triangle[1].y - triangle[0].y, triangle[1].z - triangle[0].z);
+    Vec3f ac(triangle[2].x - triangle[0].x, triangle[2].y - triangle[0].y, triangle[2].z - triangle[0].z);
+    Vec3f ap(point[0] - triangle[0].x, point[1] - triangle[0].y, point[2] - triangle[0].z);
+
+    double z = crossProduct(ab, ap).z / crossProduct(ab, ac).z;
+    double y = crossProduct(ap, ac).z  / crossProduct(ab, ac).z;
+    double x = 1.f - y - z;
 
     //if (std::abs(temp.z) < 1) return Vec3f(-1, 1, 1);
-    return Vec3f(1.f-(temp.x + temp.y) / temp.z, temp.y / temp.z, temp.x / temp.z);
+    return Vec3f(x, y, z);
 }
 
 void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles = true, bool fillRectangles = true) {
@@ -113,7 +124,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
         TGAImage image(imageSize, imageSize, TGAImage::RGB);
 
         std::string line;
-        std::vector<std::array<double,3>> vertices = getVertices(infile);
+        std::vector<Vec3f> vertices = getVertices(infile);
         infile.clear();
         infile.seekg(0);
 
@@ -123,7 +134,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
             if (drawCloud) { // draw a cloud of points (vertices)
                 for (auto i = 0; i < vertices.size(); i++) {
-                    drawPoint(image, vertices.at(i)[0] * imageSize/2 + imageSize/2, vertices.at(i)[1] * imageSize/2 + imageSize/2, red);
+                    drawPoint(image, vertices.at(i).x * imageSize/2 + imageSize/2, vertices.at(i).y * imageSize/2 + imageSize/2, red);
                 }
             }
 
@@ -139,19 +150,20 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
                     if (fillRectangles) {
 
-                        std::array<double, 3> a = vertices.at(index0-1);
-                        std::array<double, 3> b = vertices.at(index1-1);
-                        std::array<double, 3> c = vertices.at(index2-1);
+                        Vec3f a = vertices.at(index0-1);
+                        Vec3f b = vertices.at(index1-1);
+                        Vec3f c = vertices.at(index2-1);
 
-                        double x_min = std::min(a[0], std::min(b[0], c[0])) * imageSize/2 + imageSize/2;
-                        double y_min = std::min(a[1], std::min(b[1], c[1])) * imageSize/2 + imageSize/2;
+                        double x_min = std::min(a.x, std::min(b.x, c.x));
+                        double y_min = std::min(a.y, std::min(b.y, c.y));
 
-                        double x_max = std::max(a[0], std::max(b[0], c[0])) * imageSize/2 + imageSize/2;
-                        double y_max = std::max(a[1], std::max(b[1], c[1])) * imageSize/2 + imageSize/2;
+                        double x_max = std::max(a.x, std::max(b.x, c.x));
+                        double y_max = std::max(a.y, std::max(b.y, c.y));
+
+                        std::vector<Vec3f> triangles;
 
                         for (auto x = x_min; x <= x_max; x++) {
                             for (auto y = y_min ; y <= y_max; y++) {
-                                std::vector<std::array<double, 3>> triangles;
                                 triangles.push_back(a);
                                 triangles.push_back(b);
                                 triangles.push_back(c);
@@ -160,13 +172,16 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
                                 Vec3f bary = getBarycentric(triangles, point);
                                 //std::cout << bary.x << " " << bary.y << " " << bary.z << std::endl;
-                                //if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
-                                drawPoint(image, x, y, red);
+                                if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
+                                drawPoint(image, x * imageSize/2 + imageSize/2, y * imageSize/2 + imageSize/2, red);
+
+                                triangles.clear();
                             } 
                         }
                     } else {
                     }
-                        drawTriangle(image, vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1), white);
+                        Vec3f triangle[] = {vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1)};
+                        drawTriangle(image, triangle, white);
                 }
             }
         }
@@ -182,7 +197,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 int main(int argc, char** argv) {
     std::string fileName(argv[1]);
 
-	readFile(fileName);
+	readFile(fileName, false, true, false);
 
 	return 0;
 }
