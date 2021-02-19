@@ -177,6 +177,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 
                         std::vector<Vec3f> triangles;
                         TGAColor randomColor(std::rand()%255,std::rand()%255,std::rand()%255,255);
+                        
                         for (auto x = x_min; x <= x_max; x++) {
                             for (auto y = y_min ; y <= y_max; y++) {
                                 triangles.push_back(a.worldToScreen());
@@ -186,7 +187,6 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
                                 double point[] = {x, y};
 
                                 Vec3f bary = getBarycentric(triangles, point);
-                                //std::cout << bary.x << " " << bary.y << " " << bary.z << std::endl;
                                 if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
                                 drawPoint(image, x, y, randomColor);
 
