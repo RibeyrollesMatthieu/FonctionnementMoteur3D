@@ -116,7 +116,7 @@ Vec3f getBarycentric(std::vector<Vec3f> &triangle, double *point) {
     return Vec3f(x, y, z);
 }
 
-void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles = true, bool fillRectangles = true) {
+void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles = true, bool fillTriangles = true) {
 	std::ifstream infile(fileName);
 
     if (infile) {
@@ -148,40 +148,51 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
                         index1 >> slash >> trashInt >> slash >> trashInt >> 
                         index2 >> slash >> trashInt >> slash >> trashInt;
 
-                    if (fillRectangles) {
+                    
+                    Vec3f triangle[] = {vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1)};
+                    drawTriangle(image, triangle, white);
+                }
+            }
+
+            if (fillTriangles) {
+                if (line.rfind("f ", 0) == 0) {  
+                    int index0, index1, index2, trashInt;
+                    char slash;
+
+                    streamLine >> smth >> 
+                        index0 >> slash >> trashInt >> slash >> trashInt >> 
+                        index1 >> slash >> trashInt >> slash >> trashInt >> 
+                        index2 >> slash >> trashInt >> slash >> trashInt;
+
 
                         Vec3f a = vertices.at(index0-1);
                         Vec3f b = vertices.at(index1-1);
                         Vec3f c = vertices.at(index2-1);
 
-                        double x_min = std::min(a.x, std::min(b.x, c.x));
-                        double y_min = std::min(a.y, std::min(b.y, c.y));
+                        double x_min = std::min(a.x, std::min(b.x, c.x)) * imageSize/2 + imageSize/2;
+                        double y_min = std::min(a.y, std::min(b.y, c.y)) * imageSize/2 + imageSize/2;
 
-                        double x_max = std::max(a.x, std::max(b.x, c.x));
-                        double y_max = std::max(a.y, std::max(b.y, c.y));
+                        double x_max = std::max(a.x, std::max(b.x, c.x)) * imageSize/2 + imageSize/2;
+                        double y_max = std::max(a.y, std::max(b.y, c.y)) * imageSize/2 + imageSize/2;
 
                         std::vector<Vec3f> triangles;
-
+                        TGAColor randomColor(std::rand()%255,std::rand()%255,std::rand()%255,255);
                         for (auto x = x_min; x <= x_max; x++) {
                             for (auto y = y_min ; y <= y_max; y++) {
-                                triangles.push_back(a);
-                                triangles.push_back(b);
-                                triangles.push_back(c);
+                                triangles.push_back(a.worldToScreen());
+                                triangles.push_back(b.worldToScreen());
+                                triangles.push_back(c.worldToScreen());
 
                                 double point[] = {x, y};
 
                                 Vec3f bary = getBarycentric(triangles, point);
                                 //std::cout << bary.x << " " << bary.y << " " << bary.z << std::endl;
                                 if (bary.x < 0 || bary.y < 0 || bary.z < 0) continue;
-                                drawPoint(image, x * imageSize/2 + imageSize/2, y * imageSize/2 + imageSize/2, red);
+                                drawPoint(image, x, y, randomColor);
 
                                 triangles.clear();
                             } 
                         }
-                    } else {
-                    }
-                        Vec3f triangle[] = {vertices.at(index0-1), vertices.at(index1-1), vertices.at(index2-1)};
-                        drawTriangle(image, triangle, white);
                 }
             }
         }
@@ -197,7 +208,7 @@ void readFile(std::string fileName, bool drawCloud = false, bool drawTriangles =
 int main(int argc, char** argv) {
     std::string fileName(argv[1]);
 
-	readFile(fileName, false, true, false);
+	readFile(fileName, false, false, true);
 
 	return 0;
 }
